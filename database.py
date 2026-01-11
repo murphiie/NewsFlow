@@ -4,7 +4,7 @@ import os
 # Esta URL será configurada depois no Docker. 
 MONGODB_URL = "mongodb://localhost:27017"
 
-client = AsyncIOMotorClient(MONGODB_URL)
+client = AsyncIOMotorClient("mongodb://mongos:27017")
 db = client.newsflow_db
 collection = db.get_collection("artigos")
 
