@@ -54,3 +54,33 @@ A API conta com documentação automática via **Swagger UI**. Com o servidor ro
 | :--- | :--- | :--- |
 | **Geovana Rodrigues** | Engenharia de Backend, Modelagem Pydantic e Documentação de API | [@murphiie](https://github.com/murphiie) |
 | **Rafaela Ramos** | Engenharia de Infraestrutura, Configuração de Docker e Cluster MongoDB Sharding | [@RafaellaRamos1](https://github.com/RafaellaRamos1) |
+# Projeto Sistemas Distribuídos - API
+
+## Como rodar a API
+
+1. Instalar Docker e Docker Compose
+2. Clonar o projeto:
+ 
+   git clone https://github.com/murphiie/Projeto_Sistemas_Distribuidos.git
+   cd Projeto_Sistemas_Distribuidos/api
+#Subir os containers:
+
+docker-compose up --build                                                                                   Inicializar o Replica Set do MongoDB (uma vez):
+
+docker exec -it mongo1 mongo
+#No shell do Mongo, rode:
+
+rs.initiate({
+  _id: "rs0",
+  members: [
+    { _id: 0, host: "mongo1:27017" },
+    { _id: 1, host: "mongo2:27017" },
+    { _id: 2, host: "mongo3:27017" }
+  ]
+})
+#A API estará disponível em:
+
+http://localhost:8000
+Para parar os containers:
+
+docker-compose down
