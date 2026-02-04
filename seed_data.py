@@ -2,14 +2,12 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
 
-# URL de conexão corrigida para o Docker (usa o nome do serviço 'mongos')
+# URL de conexão: localhost aponta para o Mongos rodando na Instância 1 [cite: 43]
 MONGODB_URL = "mongodb://localhost:27017" 
-# Nota: Use localhost se rodar o script da sua máquina, 
-# mas use "mongodb://mongos:27017" se for rodar de dentro de um container.
 DATABASE_NAME = "newsflow_db"
 COLLECTION_NAME = "artigos"
 
-# teste
+# Categorias para testar a distribuição (Shard Key) [cite: 24, 54]
 CATEGORIAS = ["Tecnologia", "Política", "Esportes", "Saúde", "Cultura"]
 
 def gerar_artigos(quantidade: int):
@@ -18,9 +16,9 @@ def gerar_artigos(quantidade: int):
         cat = CATEGORIAS[i % len(CATEGORIAS)] # Distribui entre as categorias
         artigo = {
             "titulo": f"Notícia de Teste Automático {i}",
-            "corpo": f"Este é o conteúdo detalhado da notícia número {i} para teste de carga e sharding.",
+            "corpo": f"Este é o conteúdo detalhado da notícia número {i} para teste de carga e sharding. [cite: 78]",
             "autor": "Bot de Seed",
-            "category": cat, # MUDADO DE 'categoria' PARA 'category'
+            "categoria": cat, # CORRIGIDO: Deve ser igual à Shard Key definida no cluster 
             "data_publicacao": datetime.utcnow().isoformat()
         }
         artigos.append(artigo)
@@ -32,13 +30,14 @@ async def rodar_seed():
     db = client[DATABASE_NAME]
     collection = db[COLLECTION_NAME]
 
-    print("Gerando 50 artigos de teste...")
+    print(f"Gerando {50} artigos de teste...")
     dados = gerar_artigos(50)
 
-    print("Inserindo no banco de dados distribuído...")
+    print("Inserindo no banco de dados distribuído via Mongos... [cite: 43]")
     try:
         resultado = await collection.insert_many(dados)
         print(f"Sucesso! {len(resultado.inserted_ids)} artigos foram inseridos.")
+        print("A distribuição entre Shards foi processada automaticamente. [cite: 59]")
     except Exception as e:
         print(f"Erro ao inserir: {e}")
     finally:

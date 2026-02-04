@@ -6,3 +6,16 @@ projeto-ke.pem
 venv/
 node_modules/
 .vscode/projeto-ke.pem
+
+
+# Ignorar ambiente virtual (pesado e inútil para outros)
+venv/
+env/
+
+# Ignorar arquivos compilados do Python
+__pycache__/
+*.pyc
+
+# Ignorar configurações sensíveis do sistema (Mac/Windows)
+.DS_Store
+
