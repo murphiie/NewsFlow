@@ -5,26 +5,26 @@ import plotly.express as px
 from datetime import date
 
 st.set_page_config(page_title="NewsFlow CMS", page_icon="📰", layout="wide")
+# Lembre-se de alterar para o seu IP Público se estiver rodando na AWS
 API_URL = "http://127.0.0.1:8000"
 
 st.title("📰 NewsFlow: Sistema Distribuído")
 st.markdown("---")
 
-menu = st.sidebar.selectbox("Navegação", ["Dashboard", "Ler Notícias", "Cadastrar Notícia"])
+# MENU ATUALIZADO: Incluindo Atualizar e Remover
+menu = st.sidebar.selectbox("Navegação", ["Dashboard", "Ler Notícias", "Cadastrar Notícia", "Atualizar Notícia", "Remover Notícia"])
 
 # --- PÁGINA 1: DASHBOARD ---
 if menu == "Dashboard":
     st.header("📊 Monitoramento")
     try:
         response = requests.get(f"{API_URL}/artigos")
-        # Aceita 200 (OK) ou 201 (Criado)
         if response.status_code in [200, 201]:
             dados = response.json()
             if dados:
                 df = pd.DataFrame(dados)
                 st.metric("Total de Artigos", len(dados))
                 
-                # Inteligência para achar a coluna certa (Inglês ou Português)
                 coluna = 'category' if 'category' in df.columns else 'categoria'
                 
                 if coluna in df.columns:
@@ -59,7 +59,6 @@ elif menu == "Cadastrar Notícia":
             }
             try:
                 res = requests.post(f"{API_URL}/artigos", json=payload)
-                # A CORREÇÃO MÁGICA: Aceita 201 como Sucesso também!
                 if res.status_code in [200, 201]: 
                     st.success("✅ Sucesso! Notícia salva e distribuída.")
                 else: 
@@ -76,8 +75,58 @@ elif menu == "Ler Notícias":
             if r.status_code in [200, 201]:
                 for a in r.json():
                     cat = a.get('category', a.get('categoria', 'Geral'))
+                    # Exibindo o ID para facilitar a cópia para as funções de Update/Delete
                     with st.expander(f"{a['titulo']} ({cat})"):
+                        st.code(f"ID: {a.get('id', a.get('_id'))}") 
                         st.write(a['corpo'])
                         st.caption(f"Autor: {a['autor']} | Data: {a.get('data_publicacao', 'Hoje')}")
         except Exception as e: 
             st.error(f"Erro: {e}")
+
+# --- PÁGINA 4: ATUALIZAR NOTÍCIA ---
+elif menu == "Atualizar Notícia":
+    st.header("📝 Editar Registro")
+    id_artigo = st.text_input("ID do Artigo para atualizar")
+    
+    with st.form("update_form"):
+        st.write("Novos dados:")
+        new_titulo = st.text_input("Novo Título")
+        new_autor = st.text_input("Novo Autor")
+        new_cat = st.selectbox("Nova Categoria", ["Esportes", "Politica", "Tecnologia", "Saúde"])
+        new_corpo = st.text_area("Novo Texto")
+        
+        if st.form_submit_button("Salvar Alterações"):
+            payload = {
+                "titulo": new_titulo, 
+                "autor": new_autor, 
+                "category": new_cat, 
+                "corpo": new_corpo,
+                "data_publicacao": str(date.today())
+            }
+            try:
+                # Requer que você tenha a rota @app.put("/artigos/{id}") no main.py
+                res = requests.put(f"{API_URL}/artigos/{id_artigo}", json=payload)
+                if res.status_code == 200:
+                    st.success("✅ Artigo atualizado com sucesso!")
+                else:
+                    st.error(f"Erro ao atualizar: {res.status_code}")
+            except Exception as e:
+                st.error(f"Erro: {e}")
+
+# --- PÁGINA 5: REMOVER NOTÍCIA ---
+elif menu == "Remover Notícia":
+    st.header("🗑️ Excluir do Sistema")
+    id_delete = st.text_input("Cole o ID do artigo que deseja remover")
+    
+    if st.button("Remover Permanentemente"):
+        if id_delete:
+            try:
+                res = requests.delete(f"{API_URL}/artigos/{id_delete}")
+                if res.status_code == 200:
+                    st.success("✅ Notícia removida do cluster distribuído!")
+                else:
+                    st.error(f"Erro: {res.status_code} - {res.text}")
+            except Exception as e:
+                st.error(f"Erro de conexão: {e}")
+        else:
+            st.warning("Por favor, insira um ID válido.")
