@@ -37,6 +37,9 @@ Os usuarios acessam os endpoints sem saber em qual fragmento (Shard) do banco de
 * Validacao de Dados: Pydantic
 * Infraestrutura: AWS EC2 (Linux Ubuntu)
 
+## Acesse o CMS aqui 
+* http://44.210.95.222:8501/
+
 ## Documentacao da API (Endpoints)
 
 A API conta com documentacao automatica via Swagger UI. Com o servidor rodando, acesse: http://localhost:8000/docs.
