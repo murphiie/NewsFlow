@@ -3,6 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
 from typing import List
 from bson import ObjectId
+from datetime import datetime  # <--- IMPORTAÇÃO DA DATA ADICIONADA
 
 from database import collection, artigo_helper
 from models import Artigo
@@ -38,8 +39,8 @@ app = FastAPI(
     openapi_tags=tags_metadata,
     swagger_ui_parameters={
         "defaultModelsExpandDepth": -1,  
-        "filter": True,                 
-        "docExpansion": "list",        
+        "filter": True,                  
+        "docExpansion": "list",         
     }
 )
 
@@ -125,48 +126,63 @@ async def listar_artigos():
     return artigos
 
 # --- 3. BUSCAR POR CATEGORIA (GET) ---
-@app.get("/artigos/categoria/{{category}}", response_model=List[dict], tags=["Acervo Público"], summary="Filtrar por Categoria")
+@app.get("/artigos/categoria/{category}", response_model=List[dict], tags=["Acervo Público"], summary="Filtrar por Categoria")
 async def buscar_por_categoria(category: str):
     artigos = []
-    async for documento in collection.find({{"category": category}}):
+    async for documento in collection.find({"category": category}):
         artigos.append(artigo_helper(documento))
     return artigos
 
-# --- 4. CRIAR ARTIGO (POST) ---
+# --- 4. CRIAR ARTIGO (POST) - CORRIGIDO COM DATA AUTOMÁTICA ---
 @app.post("/artigos/", status_code=status.HTTP_201_CREATED, response_model=dict, tags=["Gestão de Conteúdo"], summary="Catalogar nova notícia")
 async def criar_artigo(artigo: Artigo = Body(...)):
     artigo_dict = jsonable_encoder(artigo)
+    
+    # --- CORREÇÃO: Adiciona a data de hoje automaticamente ---
+    if "data_publicacao" not in artigo_dict or not artigo_dict["data_publicacao"]:
+        artigo_dict["data_publicacao"] = datetime.now().strftime("%Y-%m-%d")
+    
     novo_artigo = await collection.insert_one(artigo_dict)
     
-    criado = await collection.find_one({{"_id": novo_artigo.inserted_id, "category": artigo_dict["category"]}})
+    criado = await collection.find_one({"_id": novo_artigo.inserted_id})
     if criado:
         return artigo_helper(criado)
     raise HTTPException(status_code=400, detail="Erro ao catalogar")
 
-# --- 5. ATUALIZAR ARTIGO (PUT) - ESSENCIAL PARA O DASHBOARD.PY ---
-@app.put("/artigos/{{id}}", tags=["Gestão de Conteúdo"], summary="Atualizar notícia existente")
+# --- 5. ATUALIZAR ARTIGO (PUT) ---
+@app.put("/artigos/{id}", tags=["Gestão de Conteúdo"], summary="Atualizar notícia existente")
 async def atualizar_artigo(id: str, artigo: Artigo = Body(...)):
     """Atualiza um registro no cluster distribuído via ID."""
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="ID inválido")
     
     artigo_dict = jsonable_encoder(artigo)
+    
+    # Mantém a data original se não for enviada nova
+    if "data_publicacao" not in artigo_dict:
+         artigo_dict["data_publicacao"] = datetime.now().strftime("%Y-%m-%d")
+
     update_result = await collection.update_one(
-        {{"_id": ObjectId(id)}}, 
-        {{"$set": artigo_dict}}
+        {"_id": ObjectId(id)}, 
+        {"$set": artigo_dict}
     )
     
     if update_result.modified_count == 1:
-        return {{"mensagem": "Registro atualizado com sucesso"}}
+        return {"mensagem": "Registro atualizado com sucesso"}
+    
+    # Se não modificou nada (dados iguais), mas o ID existe, retornamos sucesso ou aviso
+    if update_result.matched_count == 1:
+        return {"mensagem": "Nenhuma alteração necessária (dados idênticos)"}
+        
     raise HTTPException(status_code=404, detail="Artigo não encontrado para atualização")
 
 # --- 6. DELETAR ARTIGO (DELETE) ---
-@app.delete("/artigos/{{id}}", tags=["Gestão de Conteúdo"], summary="Remover registro do acervo")
+@app.delete("/artigos/{id}", tags=["Gestão de Conteúdo"], summary="Remover registro do acervo")
 async def deletar_artigo(id: str):
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="Identificador inválido")
         
-    delete_result = await collection.delete_one({{"_id": ObjectId(id)}})
+    delete_result = await collection.delete_one({"_id": ObjectId(id)})
     if delete_result.deleted_count == 1:
-        return {{"mensagem": "Registro removido com sucesso"}}
+        return {"mensagem": "Registro removido com sucesso"}
     raise HTTPException(status_code=404, detail="Registro não encontrado")
